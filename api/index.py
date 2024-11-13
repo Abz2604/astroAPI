@@ -16,7 +16,7 @@ class BirthData(BaseModel):
     time_of_birth: str  # Format: "HH:MM"
     place_of_birth: str
 
-@app.post("/generate_chart_data/")
+@app.post("/api/py/generate_chart_data/")
 async def generate_chart_data(birth_data: BirthData):
     # Split date and time into components
     year, month, day = map(int, birth_data.date_of_birth.split('-'))
