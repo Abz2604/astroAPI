@@ -1,14 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import kerykeion as kr
-from kerykeion import AstrologicalSubject  # Make sure to import AstrologicalSubject
-import json
+from kerykeion import AstrologicalSubject
 import logging
+import json
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 
-### Create FastAPI instance with custom docs and openapi url
+# Create FastAPI instance with custom docs and openapi URL
 app = FastAPI(docs_url="/api/py/docs", openapi_url="/api/py/openapi.json")
 
 @app.get("/api/py/helloFastApi")
@@ -19,64 +18,53 @@ class BirthData(BaseModel):
     name: str
     date_of_birth: str  # Format: "YYYY-MM-DD"
     time_of_birth: str  # Format: "HH:MM"
-    place_of_birth: str
+    latitude: float
+    longitude: float
+    timezone: str
+
+# Function to generate astrology details
+def generate_astrology_details(name, birth_date, birth_time, latitude, longitude, timezone):
+    # Parse birth date and time
+    birth_year, birth_month, birth_day = map(int, birth_date.split('-'))
+    birth_hour, birth_minute = map(int, birth_time.split(':'))
+
+    # Create an AstrologicalSubject instance
+    subject = AstrologicalSubject(
+        name=name,
+        year=birth_year,
+        month=birth_month,
+        day=birth_day,
+        hour=birth_hour,
+        minute=birth_minute,
+        lat=latitude,
+        lng=longitude,
+        tz_str=timezone,
+        online=False
+    )
+
+    # Serialize the subject to a JSON string
+    astrology_json = subject.json(indent=4)
+
+    return astrology_json
 
 @app.post("/api/py/generate_chart_data")
 async def generate_chart_data(birth_data: BirthData):
     try:
         logging.info(f"Received request for: {birth_data}")
 
-        # Split date and time into components
-        year, month, day = map(int, birth_data.date_of_birth.split('-'))
-        hour, minute = map(int, birth_data.time_of_birth.split(':'))
-        logging.info("Split date and time into components successfully.")
-
-        # Create an AstrologicalSubject instance
-        logging.info("Creating AstrologicalSubject instance...")
-        subject = AstrologicalSubject(
+        # Generate astrology details
+        astrology_json = generate_astrology_details(
             name=birth_data.name,
-            year=year,
-            month=month,
-            day=day,
-            hour=hour,
-            minute=minute,
-            city=birth_data.place_of_birth
+            birth_date=birth_data.date_of_birth,
+            birth_time=birth_data.time_of_birth,
+            latitude=birth_data.latitude,
+            longitude=birth_data.longitude,
+            timezone=birth_data.timezone
         )
-        logging.info("AstrologicalSubject instance created successfully.")
 
-        # Extract all possible data points
-        data = {
-            "name": subject.name,
-            "date_of_birth": birth_data.date_of_birth,
-            "time_of_birth": birth_data.time_of_birth,
-            "place_of_birth": birth_data.place_of_birth,
-            "sun": subject.sun,
-            "moon": subject.moon,
-            "mercury": subject.mercury,
-            "venus": subject.venus,
-            "mars": subject.mars,
-            "jupiter": subject.jupiter,
-            "saturn": subject.saturn,
-            "uranus": subject.uranus,
-            "neptune": subject.neptune,
-            "pluto": subject.pluto,
-            "north_node": subject.true_node,
-            "south_node": subject.true_south_node,
-            "chiron": subject.chiron,
-            "lilith": subject.mean_lilith,
-            "ascendant": subject.ascendant,
-            "midheaven": subject.midheaven,
-            "houses": subject.houses,
-            "aspects": subject.aspects,
-            "dominant_element": subject.dominant_element,
-            "dominant_modality": subject.dominant_modality,
-            "retrograde_planets": subject.retrograde_planets,
-            "chart_summary": subject.chart_summary()
-        }
+        logging.info("Astrology details generated successfully.")
+        return json.loads(astrology_json)
 
-        logging.info(f"Sending response: {data}")
-        return json.dumps(data, default=str)
-    
     except Exception as e:
         logging.error(f"Error occurred: {str(e)}")
-        return {"error": f"An unexpected error occurred: {str(e)}"}
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
