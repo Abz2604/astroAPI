@@ -1,13 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from kerykeion import AstrologicalSubject
+from kerykeion import AstrologicalSubject, KerykeionChartSVG
+from fastapi.responses import JSONResponse
 import logging
 import json
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 
-# Create FastAPI instance with custom docs and openapi URL
+# Create FastAPI instance with custom docs and OpenAPI URL
 app = FastAPI(docs_url="/api/py/docs", openapi_url="/api/py/openapi.json")
 
 @app.get("/api/py/helloFastApi")
@@ -22,7 +23,6 @@ class BirthData(BaseModel):
     longitude: float
     timezone: str
 
-# Function to generate astrology details
 def generate_astrology_details(name, birth_date, birth_time, latitude, longitude, timezone):
     # Parse birth date and time
     birth_year, birth_month, birth_day = map(int, birth_date.split('-'))
@@ -42,18 +42,22 @@ def generate_astrology_details(name, birth_date, birth_time, latitude, longitude
         online=False
     )
 
-    # Serialize the subject to a JSON string
-    astrology_json = subject.json(indent=4)
+    # Generate the SVG chart with dark theme
+    chart = KerykeionChartSVG(subject, theme="dark")
+    svg_content = chart.makeSVG(return_svg=True)
 
-    return astrology_json
+    # Serialize the subject to a JSON-compatible dictionary
+    astrology_data = subject.__dict__
+
+    return astrology_data, svg_content
 
 @app.post("/api/py/generate_chart_data")
 async def generate_chart_data(birth_data: BirthData):
     try:
         logging.info(f"Received request for: {birth_data}")
 
-        # Generate astrology details
-        astrology_json = generate_astrology_details(
+        # Generate astrology details and SVG chart
+        astrology_data, svg_content = generate_astrology_details(
             name=birth_data.name,
             birth_date=birth_data.date_of_birth,
             birth_time=birth_data.time_of_birth,
@@ -62,8 +66,13 @@ async def generate_chart_data(birth_data: BirthData):
             timezone=birth_data.timezone
         )
 
-        logging.info("Astrology details generated successfully.")
-        return json.loads(astrology_json)
+        logging.info("Astrology details and SVG chart generated successfully.")
+
+        # Return JSON data and SVG content
+        return JSONResponse(content={
+            "astrology_data": astrology_data,
+            "svg_chart": svg_content
+        })
 
     except Exception as e:
         logging.error(f"Error occurred: {str(e)}")
