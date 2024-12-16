@@ -42,9 +42,23 @@ def generate_astrology_details(name, birth_date, birth_time, latitude, longitude
         online=False
     )
 
+    # Determine the output directory
+    output_directory = "/tmp"  # Ensure this directory is writable in your environment
+
     # Generate the SVG chart with dark theme
-    chart = KerykeionChartSVG(subject, theme="dark")
-    svg_content = chart.makeSVG()
+    chart = KerykeionChartSVG(subject, theme="dark", new_output_directory=output_directory)
+    chart.makeSVG()
+
+    # Construct the file path
+    svg_filename = f"{name} - Natal Chart.svg"
+    svg_filepath = os.path.join(output_directory, svg_filename)
+
+    # Read the SVG content
+    with open(svg_filepath, "r", encoding="utf-8") as svg_file:
+        svg_content = svg_file.read()
+
+    # Optionally, delete the SVG file after reading its content
+    # os.remove(svg_filepath)
 
     # Serialize the subject to a JSON-compatible dictionary
     astrology_data = subject.__dict__
