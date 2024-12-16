@@ -44,7 +44,7 @@ def generate_astrology_details(name, birth_date, birth_time, latitude, longitude
 
     # Generate the SVG chart with dark theme
     chart = KerykeionChartSVG(subject, theme="dark")
-    svg_content = chart.makeSVG(return_svg=True)
+    svg_content = chart.makeSVG()
 
     # Serialize the subject to a JSON-compatible dictionary
     astrology_data = subject.__dict__
