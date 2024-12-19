@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from kerykeion import AstrologicalSubject, KerykeionChartSVG
+from kerykeion import AstrologicalSubject, NatalAspects
 from fastapi.responses import JSONResponse
 import logging
-import json
+from typing import Any
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +23,20 @@ class BirthData(BaseModel):
     longitude: float
     timezone: str
 
-def generate_astrology_details(name, birth_date, birth_time, latitude, longitude, timezone):
+def serialize(obj: Any) -> Any:
+    """
+    Recursively serialize an object into a JSON-compatible format.
+    """
+    if isinstance(obj, dict):
+        return {k: serialize(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize(i) for i in obj]
+    elif hasattr(obj, '__dict__'):
+        return serialize(vars(obj))
+    else:
+        return str(obj)  # Convert non-serializable objects to strings
+
+def generate_astrology_details(name: str, birth_date: str, birth_time: str, latitude: float, longitude: float, timezone: str) -> dict:
     # Parse birth date and time
     birth_year, birth_month, birth_day = map(int, birth_date.split('-'))
     birth_hour, birth_minute = map(int, birth_time.split(':'))
@@ -42,36 +55,25 @@ def generate_astrology_details(name, birth_date, birth_time, latitude, longitude
         online=False
     )
 
-    # Determine the output directory
-    output_directory = "/tmp"  # Ensure this directory is writable in your environment
-
-    # Generate the SVG chart with dark theme
-    chart = KerykeionChartSVG(subject, theme="dark", new_output_directory=output_directory)
-    chart.makeSVG()
-
-    # Construct the file path
-    svg_filename = f"{name} - Natal Chart.svg"
-    svg_filepath = os.path.join(output_directory, svg_filename)
-
-    # Read the SVG content
-    with open(svg_filepath, "r", encoding="utf-8") as svg_file:
-        svg_content = svg_file.read()
-
-    # Optionally, delete the SVG file after reading its content
-    # os.remove(svg_filepath)
+    # Calculate natal aspects
+    natal_aspects = NatalAspects(subject)
+    aspects = natal_aspects.all_aspects
 
     # Serialize the subject to a JSON-compatible dictionary
-    astrology_data = subject.__dict__
+    astrology_data = serialize(subject)
 
-    return astrology_data, svg_content
+    # Add aspects to the astrology data
+    #astrology_data['aspects'] = [serialize(aspect) for aspect in aspects]
+
+    return astrology_data
 
 @app.post("/api/py/generate_chart_data")
 async def generate_chart_data(birth_data: BirthData):
     try:
         logging.info(f"Received request for: {birth_data}")
 
-        # Generate astrology details and SVG chart
-        astrology_data, svg_content = generate_astrology_details(
+        # Generate astrology details
+        astrology_data = generate_astrology_details(
             name=birth_data.name,
             birth_date=birth_data.date_of_birth,
             birth_time=birth_data.time_of_birth,
@@ -80,13 +82,10 @@ async def generate_chart_data(birth_data: BirthData):
             timezone=birth_data.timezone
         )
 
-        logging.info("Astrology details and SVG chart generated successfully.")
+        logging.info("Astrology details generated successfully.")
 
-        # Return JSON data and SVG content
-        return JSONResponse(content={
-            "astrology_data": astrology_data,
-            "svg_chart": svg_content
-        })
+        # Return the astrology data as JSON
+        return JSONResponse(content={"astrology_data": astrology_data})
 
     except Exception as e:
         logging.error(f"Error occurred: {str(e)}")

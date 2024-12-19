@@ -1,4 +1,5 @@
 from kerykeion import AstrologicalSubject
+import os
 
 # Function to generate astrology details
 def generate_astrology_details(name, birth_date, birth_time, latitude, longitude, timezone):
