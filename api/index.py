@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from fastapi.responses import Response
 from kerykeion import AstrologicalSubject, NatalAspects, KerykeionChartSVG, AspectModel, LunarPhaseModel
 from fastapi.responses import JSONResponse, FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import logging
 from typing import Any, Dict
 import os
@@ -13,6 +14,15 @@ logging.basicConfig(level=logging.INFO)
 
 # Create FastAPI instance with custom docs and OpenAPI URL
 app = FastAPI(docs_url="/api/py/docs", openapi_url="/api/py/openapi.json")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Add your frontend URL here
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 @app.get("/api/py/helloFastApi")
 def hello_fast_api():
